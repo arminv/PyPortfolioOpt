@@ -22,6 +22,7 @@ import warnings
 import numpy as np
 import pandas as pd
 from sklearn import covariance
+from pypfopt.expected_returns import _daily_returns
 
 
 def sample_cov(prices, frequency=252):
@@ -37,11 +38,7 @@ def sample_cov(prices, frequency=252):
     :return: annualised sample covariance matrix
     :rtype: pd.DataFrame
     """
-    if not isinstance(prices, pd.DataFrame):
-        warnings.warn("prices are not in a dataframe", RuntimeWarning)
-        prices = pd.DataFrame(prices)
-    daily_returns = prices.pct_change().dropna(how="all")
-    return daily_returns.cov() * frequency
+    return _daily_returns(prices).cov() * frequency
 
 
 def semicovariance(prices, benchmark=0, frequency=252):
@@ -62,11 +59,7 @@ def semicovariance(prices, benchmark=0, frequency=252):
     :return: semicovariance matrix
     :rtype: pd.DataFrame
     """
-    if not isinstance(prices, pd.DataFrame):
-        warnings.warn("prices are not in a dataframe", RuntimeWarning)
-        prices = pd.DataFrame(prices)
-    daily_returns = prices.pct_change().dropna(how="all")
-    drops = np.fmin(daily_returns - benchmark, 0)
+    drops = np.fmin(_daily_returns(prices) - benchmark, 0)
     return drops.cov() * frequency
 
 
@@ -106,11 +99,8 @@ def exp_cov(prices, span=180, frequency=252):
     :return: annualised estimate of exponential covariance matrix
     :rtype: pd.DataFrame
     """
-    if not isinstance(prices, pd.DataFrame):
-        warnings.warn("prices are not in a dataframe", RuntimeWarning)
-        prices = pd.DataFrame(prices)
     assets = prices.columns
-    daily_returns = prices.pct_change().dropna(how="all")
+    daily_returns = _daily_returns(prices)
     N = len(assets)
 
     # Loop over matrix, filling entries with the pairwise exp cov
@@ -141,11 +131,8 @@ def min_cov_determinant(prices, frequency=252, random_state=None):
     :return: annualised estimate of covariance matrix
     :rtype: pd.DataFrame
     """
-    if not isinstance(prices, pd.DataFrame):
-        warnings.warn("prices are not in a dataframe", RuntimeWarning)
-        prices = pd.DataFrame(prices)
     assets = prices.columns
-    X = prices.pct_change().dropna(how="all")
+    X = _daily_returns(prices)
     X = np.nan_to_num(X.values)
     raw_cov_array = covariance.fast_mcd(X, random_state=random_state)[1]
     return pd.DataFrame(raw_cov_array, index=assets, columns=assets) * frequency
@@ -172,11 +159,8 @@ class CovarianceShrinkage:
         :param frequency: number of time periods in a year, defaults to 252 (the number of trading days in a year)
         :type frequency: int, optional
         """
-        if not isinstance(prices, pd.DataFrame):
-            warnings.warn("prices are not in a dataframe", RuntimeWarning)
-            prices = pd.DataFrame(prices)
         self.frequency = frequency
-        self.X = prices.pct_change().dropna(how="all")
+        self.X = _daily_returns(prices)
         self.S = self.X.cov().values
         self.delta = None  # shrinkage constant
 
